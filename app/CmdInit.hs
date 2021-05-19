@@ -14,6 +14,7 @@ import           Repository
 data CmdOptions = CmdOptions
     { cmdRepo :: FilePath
     , cmdNesting :: NestingLevel
+    , cmdUpdate :: Bool
     } deriving (Eq, Show)
 
 -- | Option parser.
@@ -27,11 +28,16 @@ parseOptions = CmdOptions
        <> value 0
        <> metavar "INT"
         )
+    <*> Turtle.switch "update" 'u' "update existing repository"
 
 parser :: CommandName -> Parser Command
 parser name = runCmd <$> subcommand name "Init repository" parseOptions
 
 runCmd :: CmdOptions -> Command
-runCmd cmd _problem _ctx = do
-    initRepo (Repository $ cmdRepo cmd) (cmdNesting cmd)
+runCmd cmd _problem _ctx = case cmdUpdate cmd of
+    False -> do
+        initRepo (Repository $ cmdRepo cmd) (cmdNesting cmd)
+    True -> do
+        repo <- using $ managed (withLockedRepo (Repository $ cmdRepo cmd) Exclusive)
+        adjustNesting repo (cmdNesting cmd)
 

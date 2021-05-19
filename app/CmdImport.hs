@@ -34,12 +34,11 @@ runCmd cmd _problem _ctx = do
         lst = case files of
             [] -> [TB.stdin]
             _ -> files
-
         act = case cmdDont cmd of
-            False -> importBlob (cmdRepo cmd)
+            False -> \val -> withLockedRepo (cmdRepo cmd) Shared $ \repo -> importBlob repo val
             True -> hashBlob
 
     forM_ lst $ \i -> do
         blobHash <- liftIO $ act i
-        liftIO $ putStrLn $ hexlify blobHash
+        liftIO $ putStrLn blobHash
 

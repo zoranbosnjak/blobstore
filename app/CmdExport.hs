@@ -6,7 +6,7 @@ import           Turtle
 import           Turtle.Bytes as TB
 import           Prelude hiding (FilePath)
 
-import           Data.Text as T
+import qualified Data.Text as T
 
 import           Command
 import           Repository
@@ -30,10 +30,8 @@ parser name = runCmd <$> subcommand name "Export blob" parseOptions
 
 runCmd :: CmdOptions -> Command
 runCmd cmd _problem _ctx = do
-    let repo = cmdRepo cmd
-    blobHash <- case unhexlify $ T.unpack $ cmdBlob cmd of
-        Nothing -> die "unable to decode blobHash"
-        Just val -> return val
+    let blobHash = T.unpack $ cmdBlob cmd
+    repo <- using $ managed (withLockedRepo (cmdRepo cmd) Shared)
     case cmdStat cmd of
         False -> TB.stdout $ exportBlob repo blobHash
         True -> do

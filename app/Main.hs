@@ -20,12 +20,14 @@ import           Command
 import qualified CmdInit
 import qualified CmdImport
 import qualified CmdExport
+import qualified CmdList
 
 commands :: [Parser Command]
 commands =
     [ CmdInit.parser "init"
     , CmdImport.parser "import"
     , CmdExport.parser "export"
+    , CmdList.parser "list"
     ]
 
 data Options = Options
@@ -53,7 +55,7 @@ main = do
     let ctx = Ctx
             { ctxProg = pName
             , ctxArgs = pArgs
-            -- , ctxRepository = undefined
+            -- , ctxRepository = TODO...
             }
 
     failureFlag <- newIORef False

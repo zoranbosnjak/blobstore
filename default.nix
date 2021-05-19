@@ -6,8 +6,7 @@
 let
 
   deps = with pkgs; [
-    # package1
-    # package2
+    b2sum
     # ...
   ];
 
