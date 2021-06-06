@@ -25,5 +25,5 @@ runCmd :: CmdOptions -> Command
 runCmd cmd _problem _ctx = do
     repo <- using $ managed (withLockedRepo (cmdRepo cmd) Exclusive)
     b <- listBlobs repo
-    liftIO $ putStrLn b
+    echo $ unsafeTextToLine b
 

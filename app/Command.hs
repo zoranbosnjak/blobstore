@@ -16,3 +16,12 @@ data Ctx = Ctx
 
 type Command = (Text -> Shell ()) -> Ctx -> Shell ()
 
+-- | Get list of file from given file/dir
+getFileListing :: FilePath -> Shell FilePath
+getFileListing path = do
+    st <- stat path
+    if  | isDirectory st -> do
+            item <- ls path
+            getFileListing item
+        | otherwise -> return path
+

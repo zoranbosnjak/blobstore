@@ -24,12 +24,13 @@ import           System.Lock.FLock
 import           System.IO.Temp
 import           System.Process
 import           System.IO hiding (FilePath)
+import qualified Filesystem.Path.CurrentOS as Path
 
-type BlobHash = String
+type BlobHash = Text
 type NestingLevel = Int
 
-readNestingLevel :: MonadIO m => Repository -> m NestingLevel
-readNestingLevel repo = (read . T.unpack) <$> liftIO (readTextFile $ nestingConfig repo)
+newtype Repository = Repository { unRepository :: FilePath }
+    deriving (Eq, Show)
 
 fileHashProcess :: CreateProcess
 fileHashProcess = val
@@ -38,9 +39,6 @@ fileHashProcess = val
     }
   where
     val = System.Process.proc "b2sum" ["-b", "-l", "512"]
-
-newtype Repository = Repository { unRepository :: FilePath }
-    deriving (Eq, Show)
 
 -- | Path to blobs directory.
 blobs :: Repository -> FilePath
@@ -62,14 +60,17 @@ tmp (Repository repo) = repo </> "tmp"
 nestingConfig :: Repository -> FilePath
 nestingConfig (Repository repo) = repo </> "nesting.config"
 
+readNestingLevel :: MonadIO m => Repository -> m NestingLevel
+readNestingLevel repo = (read . T.unpack) <$> liftIO (readTextFile $ nestingConfig repo)
+
 -- | Calculate real filepath.
 blobHashToFilePath :: NestingLevel -> BlobHash -> FilePath
 blobHashToFilePath n val
     | n < 0 = error "negative nesting level"
-    | n == 0 = decodeString val
+    | n == 0 = fromText val
     | otherwise
-        = (decodeString $ take 2 val)
-      </> blobHashToFilePath (pred n) (drop 2 val)
+        = (fromText $ T.take 2 val)
+      </> blobHashToFilePath (pred n) (T.drop 2 val)
 
 -- | Run action with locked repository.
 withLockedRepo :: (MonadIO m, MonadBaseControl IO m) =>
@@ -86,6 +87,30 @@ initRepo repo nestingLevel = do
     mktree $ blobs repo
     mktree $ tmp repo
     liftIO $ writeTextFile (nestingConfig repo) (T.pack $ show nestingLevel)
+
+toText' :: FilePath -> Text
+toText' val = case Path.toText val of
+    Left _ -> error "unexpected filepath conversion"
+    Right result -> result
+
+-- | List blobs.
+listBlobs :: Repository -> Shell BlobHash
+listBlobs repo = do
+    nestingLevel <- readNestingLevel repo
+    go nestingLevel rootPath
+  where
+    rootPath = blobs repo
+    rootPathLength = T.length $ toText' rootPath
+
+    go 0 path = do
+        val <- liftIO (sort (ls path)) >>= select
+        return $ T.filter (/= '/') $ T.drop (succ rootPathLength) $ toText' val
+
+    go n path = do
+        val <- liftIO (sort (ls path)) >>= select
+        isDir <- testdir val
+        unless isDir $ die "unexpected file"
+        go (pred n) val
 
 -- | Set repository new nesting level.
 adjustNesting :: Repository -> NestingLevel -> Shell ()
@@ -118,7 +143,7 @@ hashFold = FoldM step initial extract where
         out <- hGetLine hout
         rv <- waitForProcess ph
         unless (rv == ExitSuccess) $ die "problems with hashing"
-        return $ head $ words out
+        return $ T.pack $ head $ words out
 
 -- | Save bytes to a file as a fold.
 saveFileFold :: FilePath -> FoldM IO BS.ByteString ()
@@ -161,24 +186,6 @@ exportBlob repo blobHash = do
     nestingLevel <- readNestingLevel repo
     let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
     TB.input target
-
--- | List blobs.
-listBlobs :: Repository -> Shell BlobHash
-listBlobs repo = do
-    nestingLevel <- readNestingLevel repo
-    go nestingLevel rootPath
-  where
-    rootPath = blobs repo
-    rootPathLength = length $ encodeString rootPath
-    go 0 path = do
-        val <- liftIO (sort (ls path)) >>= select
-        return $ filter (/= '/') $ drop (succ rootPathLength) $ encodeString val
-
-    go n path = do
-        val <- liftIO (sort (ls path)) >>= select
-        isDir <- testdir val
-        unless isDir $ die "unexpected file"
-        go (pred n) val
 
 -- | Stat blob.
 statBlob :: MonadIO m => Repository -> BlobHash -> m Size
