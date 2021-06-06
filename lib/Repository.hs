@@ -39,7 +39,6 @@ fileHashProcess = val
   where
     val = System.Process.proc "b2sum" ["-b", "-l", "512"]
 
-
 newtype Repository = Repository { unRepository :: FilePath }
     deriving (Eq, Show)
 
@@ -132,17 +131,25 @@ saveFileFold target = FoldM step initial extract where
 importFold :: FilePath -> FoldM IO BS.ByteString BlobHash
 importFold target = hashFold <* saveFileFold target
 
+-- | Conditionally import blob.
+importBlobWhen :: (MonadMask m, MonadIO m) =>
+    Repository -> Shell BS.ByteString -> (BlobHash -> m Bool) -> m BlobHash
+importBlobWhen repo val act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
+    let tempfile = decodeString td </> "tempfile"
+    blobHash <- foldIO val (importFold tempfile)
+    act blobHash >>= \case
+        False -> rm tempfile    -- blob is not needed
+        True -> do              -- blob needs to be stored
+            nestingLevel <- readNestingLevel repo
+            let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
+            mktree $ directory target
+            mv tempfile target
+    return blobHash
+
 -- | Import blob.
 importBlob :: (MonadMask m, MonadIO m) =>
     Repository -> Shell BS.ByteString -> m BlobHash
-importBlob repo val = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
-    let tempfile = decodeString td </> "tempfile"
-    blobHash <- foldIO val (importFold tempfile)
-    nestingLevel <- readNestingLevel repo
-    let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
-    mktree $ directory target
-    mv tempfile target
-    return blobHash
+importBlob repo val = importBlobWhen repo val (\_ -> return True)
 
 -- | Hash blob only.
 hashBlob :: MonadIO m => Shell BS.ByteString -> m BlobHash
