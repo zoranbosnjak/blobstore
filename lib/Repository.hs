@@ -25,6 +25,7 @@ import           System.IO.Temp
 import           System.Process
 import           System.IO hiding (FilePath)
 import qualified Filesystem.Path.CurrentOS as Path
+import           System.Posix.Files
 
 type BlobHash = Text
 type NestingLevel = Int
@@ -159,9 +160,9 @@ importFold target = hashFold <* saveFileFold target
 -- | Conditionally import blob.
 importBlobWhen :: (MonadMask m, MonadIO m) =>
     Repository -> Shell BS.ByteString -> (BlobHash -> m (Maybe Text)) -> m (Either Text BlobHash)
-importBlobWhen repo val act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
+importBlobWhen repo i act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
     let tempfile = decodeString td </> "tempfile"
-    blobHash <- foldIO val (importFold tempfile)
+    blobHash <- foldIO i (importFold tempfile)
     act blobHash >>= \case
         Just val -> do      -- blob is not needed
             rm tempfile
@@ -170,14 +171,16 @@ importBlobWhen repo val act = withTempDirectory (encodeString $ tmp repo) "impor
             nestingLevel <- readNestingLevel repo
             let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
             mktree $ directory target
+            liftIO $ setFileMode (encodeString tempfile)
+                (ownerReadMode `unionFileModes` groupReadMode `unionFileModes` otherReadMode)
             mv tempfile target
             return $ Right blobHash
 
 -- | Import blob.
 importBlob :: (MonadMask m, MonadIO m) =>
     Repository -> Shell BS.ByteString -> m BlobHash
-importBlob repo val = do
-    result <- importBlobWhen repo val (\_ -> return Nothing)
+importBlob repo i = do
+    result <- importBlobWhen repo i (\_ -> return Nothing)
     case result of
         Left _ -> error "unexpected"
         Right val -> return val

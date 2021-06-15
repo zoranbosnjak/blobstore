@@ -1,23 +1,23 @@
 { mkDerivation, base, base16-bytestring, bytestring, exceptions
-, flock, foldl, monad-control, optparse-applicative, process
-, stdenv, system-filepath, temporary, text, turtle
+, flock, foldl, lib, monad-control, optparse-applicative, process
+, system-filepath, temporary, text, turtle, unix
 }:
 mkDerivation {
   pname = "blobstore";
-  version = "0.4.0";
+  version = "0.4.1";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
     base base16-bytestring bytestring exceptions flock foldl
     monad-control optparse-applicative process system-filepath
-    temporary text turtle
+    temporary text turtle unix
   ];
   executableHaskellDepends = [
     base base16-bytestring bytestring exceptions flock foldl
     monad-control optparse-applicative process system-filepath
-    temporary text turtle
+    temporary text turtle unix
   ];
   description = "BLOB store on disk";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

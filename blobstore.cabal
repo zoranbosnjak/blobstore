@@ -3,7 +3,7 @@ cabal-version:       >=1.10
 --   For further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                blobstore
-version:             0.4.0
+version:             0.4.1
 synopsis:            BLOB store on disk
 -- description:
 -- bug-reports:
@@ -37,6 +37,7 @@ library
     , exceptions
     , process
     , system-filepath
+    , unix
 
 executable blobstore
   main-is:             Main.hs
@@ -74,4 +75,5 @@ executable blobstore
     , exceptions
     , process
     , system-filepath
+    , unix
 
