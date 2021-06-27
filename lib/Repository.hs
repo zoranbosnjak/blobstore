@@ -119,6 +119,7 @@ adjustNesting repo newNestingLevel = do
     when (newNestingLevel < 0) $ die "negative nesting level"
     oldNestingLevel <- readNestingLevel repo
     when (newNestingLevel /= oldNestingLevel) $ liftIO $ do
+        mktree $ blobs2 repo
         sh $ do
             blob <- listBlobs repo
             let src = blobs repo </> blobHashToFilePath oldNestingLevel blob
@@ -202,6 +203,13 @@ statBlob repo blobHash = do
     nestingLevel <- readNestingLevel repo
     let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
     du target
+
+-- | Check if blob exists.
+testBlob :: MonadIO m => Repository -> BlobHash -> m Bool
+testBlob repo blobHash = do
+    nestingLevel <- readNestingLevel repo
+    let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
+    testfile target
 
 -- | Delete blob.
 deleteBlob :: MonadIO m => Repository -> BlobHash -> m ()
