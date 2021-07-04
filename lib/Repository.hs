@@ -160,7 +160,7 @@ importFold target = hashFold <* saveFileFold target
 
 -- | Conditionally import blob.
 importBlobWhen :: (MonadMask m, MonadIO m) =>
-    Repository -> Shell BS.ByteString -> (BlobHash -> m (Maybe Text)) -> m (Either Text BlobHash)
+    Repository -> Shell BS.ByteString -> (BlobHash -> m (Maybe e)) -> m (Either e BlobHash)
 importBlobWhen repo i act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
     let tempfile = decodeString td </> "tempfile"
     blobHash <- foldIO i (importFold tempfile)
