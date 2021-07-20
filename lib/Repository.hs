@@ -159,29 +159,31 @@ importFold :: FilePath -> FoldM IO BS.ByteString BlobHash
 importFold target = hashFold <* saveFileFold target
 
 -- | Conditionally import blob.
-importBlobWhen :: (MonadMask m, MonadIO m) =>
-    Repository -> Shell BS.ByteString -> (BlobHash -> m (Maybe e)) -> m (Either e BlobHash)
-importBlobWhen repo i act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
+-- Run finalizing action 'after' the blob is imported.
+importBlobThen :: (MonadMask m, MonadIO m) =>
+    Repository -> Shell BS.ByteString -> (BlobHash -> m (Either e (m ()))) -> m (Either e BlobHash)
+importBlobThen repo i act = withTempDirectory (encodeString $ tmp repo) "importing" $ \td -> do
     let tempfile = decodeString td </> "tempfile"
     blobHash <- foldIO i (importFold tempfile)
     act blobHash >>= \case
-        Just val -> do      -- blob is not needed
+        Left val -> do          -- blob is not needed
             rm tempfile
             return $ Left val
-        Nothing -> do       -- blob needs to be stored
+        Right finalizer -> do   -- blob needs to be stored
             nestingLevel <- readNestingLevel repo
             let target = blobs repo </> blobHashToFilePath nestingLevel blobHash
             mktree $ directory target
             liftIO $ setFileMode (encodeString tempfile)
                 (ownerReadMode `unionFileModes` groupReadMode `unionFileModes` otherReadMode)
             mv tempfile target
+            finalizer
             return $ Right blobHash
 
 -- | Import blob.
 importBlob :: (MonadMask m, MonadIO m) =>
     Repository -> Shell BS.ByteString -> m BlobHash
 importBlob repo i = do
-    result <- importBlobWhen repo i (\_ -> return Nothing)
+    result <- importBlobThen repo i (\_ -> return (Right (return ())))
     case result of
         Left _ -> error "unexpected"
         Right val -> return val

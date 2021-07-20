@@ -3,7 +3,7 @@ cabal-version:       >=1.10
 --   For further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                blobstore
-version:             0.5.2
+version:             0.6.0
 synopsis:            BLOB store on disk
 -- description:
 -- bug-reports:
