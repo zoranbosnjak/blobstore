@@ -1,10 +1,10 @@
 { mkDerivation, base, base16-bytestring, bytestring, exceptions
-, flock, foldl, monad-control, optparse-applicative, process
-, stdenv, system-filepath, temporary, text, turtle, unix
+, flock, foldl, lib, monad-control, optparse-applicative, process
+, system-filepath, temporary, text, turtle, unix
 }:
 mkDerivation {
   pname = "blobstore";
-  version = "0.6.0";
+  version = "0.6.1";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
@@ -19,5 +19,5 @@ mkDerivation {
     temporary text turtle unix
   ];
   description = "BLOB store on disk";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

@@ -114,7 +114,7 @@ listBlobs repo = do
         go (pred n) val
 
 -- | Set repository new nesting level.
-adjustNesting :: Repository -> NestingLevel -> Shell ()
+adjustNesting :: MonadIO m => Repository -> NestingLevel -> m ()
 adjustNesting repo newNestingLevel = do
     when (newNestingLevel < 0) $ die "negative nesting level"
     oldNestingLevel <- readNestingLevel repo
